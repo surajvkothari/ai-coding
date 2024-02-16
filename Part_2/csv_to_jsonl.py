@@ -18,52 +18,55 @@ def csv_to_jsonl(file_input, file_output):
         chat_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
         for row in csv_reader:
-            # Initialise chat messages with the system prompt
             sender = row["sender_handle"]
 
+            # State: Fan -> Fan
             if sender == "fan" and prev_sender == "fan":
-                prev_sender = "fan"
-                
                 # Concatenate multiple messages from the fan
                 fan_message += row["message"]
-            elif sender == "creator" and prev_sender == "creator":
-                prev_sender = "creator"
 
+                prev_sender = "fan"
+            # State: Creator -> Creator
+            elif sender == "creator" and prev_sender == "creator":
                 # Concatenate multiple messages from the creator
                 creator_message += row["message"]
-            elif sender == "creator" and prev_sender == "fan":
+
                 prev_sender = "creator"
-
-                # Add last fan message
-                fan_message += row["message"]
-
+            # State: Fan -> Creator
+            elif sender == "creator" and prev_sender == "fan":
                 # Store fan message
                 chat_messages.append({"role":"user", "content":fan_message})
-                
                 fan_message = ""  # Clear fan message
-            elif sender == "fan" and prev_sender == "creator":
-                prev_sender = "fan"
-                
-                # Add last creator message
+
+                # Concatenate current creator message
                 creator_message += row["message"]
 
+                prev_sender = "creator"
+            # State: Creator -> Fan
+            elif sender == "fan" and prev_sender == "creator":
                 # Store creator message
                 chat_messages.append({"role":"assistant", "content":creator_message})
-
                 creator_message = ""  # Clear creator message
 
-                # Store chat messages
+                # Concatenate current fan message
+                fan_message += row["message"]
+
+                # Store chat messages of fan and creator
                 JSON_OBJECTS.append({"messages": chat_messages})
 
                 # Reset chat messages
                 chat_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
+                prev_sender = "fan"
+
+    # Write chat messages to JSONL file
     with open(file_output, 'w') as file_out:
         for chat_message in JSON_OBJECTS:
             json.dump(chat_message, file_out)
             file_out.write('\n')  # Add new line for JSONL format
     
     print("Converted from CSV to JSONL file.")
+
 
 FILE_INPUT = "../fan_creator_chat.csv"
 FILE_OUTPUT = "../fan_creator_chat.jsonl"
